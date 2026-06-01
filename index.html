@@ -1,0 +1,289 @@
+# study-timer
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>勉強タイマー</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f5f5f0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.app {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem 1.5rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+h1 {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 500;
+  color: #888;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.05em;
+}
+.timer-display {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  background: #f9f9f7;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  border: 1px solid #ebebeb;
+}
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 0.5rem;
+}
+.dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #ccc;
+  transition: background 0.3s;
+}
+.dot.running { background: #1D9E75; animation: pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.status-text { font-size: 13px; color: #999; }
+.time-big {
+  font-size: 52px;
+  font-weight: 500;
+  color: #222;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 2px;
+  transition: color 0.3s;
+}
+.time-big.running { color: #1D9E75; }
+
+.buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+.btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn:hover { background: #f5f5f5; }
+.btn:active { transform: scale(0.97); }
+.btn.start { border-color: #0F6E56; color: #0F6E56; }
+.btn.start:hover { background: #E1F5EE; }
+.btn.stop { border-color: #993C1D; color: #993C1D; }
+.btn.stop:hover { background: #FAECE7; }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+.stat-card {
+  background: #f9f9f7;
+  border-radius: 10px;
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+}
+.stat-label { font-size: 11px; color: #999; margin-bottom: 4px; }
+.stat-value { font-size: 18px; font-weight: 500; color: #222; font-variant-numeric: tabular-nums; }
+
+.records-section {
+  background: white;
+  border: 1px solid #ebebeb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.records-header {
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid #ebebeb;
+  font-size: 12px;
+  font-weight: 500;
+  color: #999;
+  letter-spacing: 0.05em;
+}
+.record-list { max-height: 180px; overflow-y: auto; }
+.record-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+.record-item:last-child { border-bottom: none; }
+.record-time { color: #aaa; }
+.record-dur { font-weight: 500; color: #333; font-variant-numeric: tabular-nums; }
+.empty-msg {
+  padding: 1.5rem;
+  text-align: center;
+  font-size: 13px;
+  color: #bbb;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>📚 勉強タイマー</h1>
+
+  <div class="timer-display">
+    <div class="status-row">
+      <span class="dot" id="dot"></span>
+      <span class="status-text" id="status-text">停止中</span>
+    </div>
+    <div class="time-big" id="display">00:00:00</div>
+  </div>
+
+  <div class="buttons">
+    <button class="btn start" id="btn-start" onclick="startTimer()">▶ スタート</button>
+    <button class="btn stop" id="btn-stop" onclick="stopTimer()" disabled>⏸ ストップ</button>
+    <button class="btn" onclick="resetTimer()">↺ リセット</button>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">今日</div>
+      <div class="stat-value" id="stat-today">0:00</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">今週</div>
+      <div class="stat-value" id="stat-week">0:00</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">今年</div>
+      <div class="stat-value" id="stat-year">0:00</div>
+    </div>
+  </div>
+
+  <div class="records-section">
+    <div class="records-header">記録履歴</div>
+    <div class="record-list" id="record-list">
+      <div class="empty-msg">まだ記録がありません</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let records = [];
+try { records = JSON.parse(localStorage.getItem('study_records') || '[]'); } catch(e){}
+let elapsed = 0, running = false, interval = null, startTs = null;
+
+function fmt(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function fmtShort(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  return h > 0 ? `${h}:${String(m).padStart(2,'0')}` : `0:${String(m).padStart(2,'0')}`;
+}
+function fmtTime(iso) {
+  const d = new Date(iso);
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function startTimer() {
+  if (running) return;
+  running = true;
+  startTs = Date.now() - elapsed * 1000;
+  interval = setInterval(() => {
+    elapsed = Math.floor((Date.now() - startTs) / 1000);
+    document.getElementById('display').textContent = fmt(elapsed);
+  }, 500);
+  document.getElementById('display').classList.add('running');
+  document.getElementById('dot').classList.add('running');
+  document.getElementById('status-text').textContent = '計測中...';
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-stop').disabled = false;
+}
+
+function stopTimer() {
+  if (!running) return;
+  running = false;
+  clearInterval(interval);
+  if (elapsed > 0) {
+    records.unshift({ ts: new Date().toISOString(), sec: elapsed });
+    try { localStorage.setItem('study_records', JSON.stringify(records)); } catch(e){}
+  }
+  elapsed = 0;
+  document.getElementById('display').textContent = '00:00:00';
+  document.getElementById('display').classList.remove('running');
+  document.getElementById('dot').classList.remove('running');
+  document.getElementById('status-text').textContent = '停止中';
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+  updateStats();
+  renderRecords();
+}
+
+function resetTimer() {
+  if (running) { clearInterval(interval); running = false; }
+  elapsed = 0;
+  document.getElementById('display').textContent = '00:00:00';
+  document.getElementById('display').classList.remove('running');
+  document.getElementById('dot').classList.remove('running');
+  document.getElementById('status-text').textContent = '停止中';
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+}
+
+function isSameDay(d1, d2) {
+  return d1.getFullYear()===d2.getFullYear() && d1.getMonth()===d2.getMonth() && d1.getDate()===d2.getDate();
+}
+function isSameWeek(d1, d2) {
+  const s1 = new Date(d1); s1.setDate(d1.getDate()-d1.getDay());
+  const s2 = new Date(d2); s2.setDate(d2.getDate()-d2.getDay());
+  return s1.toDateString()===s2.toDateString();
+}
+
+function updateStats() {
+  const now = new Date();
+  let today=0, week=0, year=0;
+  for (const r of records) {
+    const d = new Date(r.ts);
+    if (d.getFullYear()===now.getFullYear()) year+=r.sec;
+    if (isSameWeek(d,now)) week+=r.sec;
+    if (isSameDay(d,now)) today+=r.sec;
+  }
+  document.getElementById('stat-today').textContent = fmtShort(today);
+  document.getElementById('stat-week').textContent = fmtShort(week);
+  document.getElementById('stat-year').textContent = fmtShort(year);
+}
+
+function renderRecords() {
+  const list = document.getElementById('record-list');
+  if (records.length === 0) {
+    list.innerHTML = '<div class="empty-msg">まだ記録がありません</div>';
+    return;
+  }
+  list.innerHTML = records.slice(0,20).map(r =>
+    `<div class="record-item">
+      <span class="record-time">${fmtTime(r.ts)}</span>
+      <span class="record-dur">${fmt(r.sec)}</span>
+    </div>`
+  ).join('');
+}
+
+updateStats();
+renderRecords();
+</script>
+</body>
+</html>
